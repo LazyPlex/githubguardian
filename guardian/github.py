@@ -1,28 +1,19 @@
-"""Minimal GitHub API client for public repository scanning."""
+"""GitHub REST client used by GitHub Guardian."""
 
 from __future__ import annotations
 
 import base64
 import os
-from dataclasses import dataclass
 from typing import Any
 
 import requests
 
-
 API_ROOT = "https://api.github.com"
-API_VERSION = "2026-03-10"
+API_VERSION = "2022-11-28"
 
 
 class GitHubError(RuntimeError):
     pass
-
-
-@dataclass(frozen=True)
-class RepositoryFile:
-    path: str
-    size: int
-    sha: str
 
 
 class GitHubClient:
@@ -32,20 +23,20 @@ class GitHubClient:
         self.session.headers.update({
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": API_VERSION,
-            "User-Agent": "githubguardian/0.2.0",
+            "User-Agent": "githubguardian/0.5.0",
         })
         token = token or os.getenv("GITHUB_TOKEN")
         if token:
             self.session.headers["Authorization"] = f"Bearer {token}"
 
-    def _get(self, path: str, **params: Any) -> dict[str, Any]:
+    def _get(self, path: str, **params: Any) -> Any:
         response = self.session.get(f"{API_ROOT}{path}", params=params or None, timeout=self.timeout)
         if response.status_code == 403:
             raise GitHubError("GitHub returned 403. Check rate limits or token permissions.")
         if response.status_code == 404:
             raise GitHubError("Repository or resource was not found.")
         if not response.ok:
-            raise GitHubError(f"GitHub API error {response.status_code}: {response.text[:200]}")
+            raise GitHubError(f"GitHub API error {response.status_code}: {response.text[:300]}")
         return response.json()
 
     def repository(self, owner: str, repo: str) -> dict[str, Any]:
@@ -65,6 +56,24 @@ class GitHubClient:
         if b"\x00" in raw:
             return None
         return raw.decode("utf-8", errors="replace")
+
+    def commits(self, owner: str, repo: str, ref: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
+        return self._get(f"/repos/{owner}/{repo}/commits", sha=ref, per_page=min(max(limit, 1), 100))
+
+    def commit(self, owner: str, repo: str, sha: str) -> dict[str, Any]:
+        return self._get(f"/repos/{owner}/{repo}/commits/{sha}")
+
+    def pull_request(self, owner: str, repo: str, number: int) -> dict[str, Any]:
+        return self._get(f"/repos/{owner}/{repo}/pulls/{number}")
+
+    def pull_request_files(self, owner: str, repo: str, number: int, limit: int = 100) -> list[dict[str, Any]]:
+        return self._get(f"/repos/{owner}/{repo}/pulls/{number}/files", per_page=min(max(limit, 1), 100))
+
+    def workflow_file(self, owner: str, repo: str, path: str, ref: str | None = None) -> str | None:
+        data = self._get(f"/repos/{owner}/{repo}/contents/{path}", **({"ref": ref} if ref else {}))
+        if data.get("encoding") != "base64":
+            return None
+        return base64.b64decode(data["content"]).decode("utf-8", errors="replace")
 
 
 def parse_repository(value: str) -> tuple[str, str]:
