@@ -11,7 +11,7 @@ class Database:
     def init(self):
         with self.connect() as c:
             c.executescript("""CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,github_id INTEGER UNIQUE NOT NULL,login TEXT NOT NULL,access_token TEXT NOT NULL,created_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS repositories(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,full_name TEXT NOT NULL,ref TEXT NOT NULL,UNIQUE(user_id,full_name));
+CREATE TABLE IF NOT EXISTS teams(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,owner_id INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS team_members(team_id INTEGER NOT NULL,user_id INTEGER NOT NULL,role TEXT NOT NULL DEFAULT 'member',UNIQUE(team_id,user_id)); CREATE TABLE IF NOT EXISTS repositories(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,full_name TEXT NOT NULL,ref TEXT NOT NULL,team_id INTEGER,UNIQUE(user_id,full_name));
 CREATE TABLE IF NOT EXISTS findings(id INTEGER PRIMARY KEY AUTOINCREMENT,repository_id INTEGER NOT NULL,fingerprint TEXT NOT NULL,detector TEXT NOT NULL,severity TEXT NOT NULL,path TEXT NOT NULL,line INTEGER NOT NULL,redacted_match TEXT NOT NULL,recommendation TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'open',first_seen TEXT NOT NULL,last_seen TEXT NOT NULL,UNIQUE(repository_id,fingerprint));
 CREATE TABLE IF NOT EXISTS scans(id INTEGER PRIMARY KEY AUTOINCREMENT,repository_id INTEGER NOT NULL,status TEXT NOT NULL,finding_count INTEGER NOT NULL DEFAULT 0,started_at TEXT NOT NULL,finished_at TEXT);
 CREATE TABLE IF NOT EXISTS alert_configs(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,kind TEXT NOT NULL,target TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1);""")
@@ -22,9 +22,21 @@ CREATE TABLE IF NOT EXISTS alert_configs(id INTEGER PRIMARY KEY AUTOINCREMENT,us
     def get_user(self,i):
         with self.connect() as c:
             x=c.execute("SELECT * FROM users WHERE id=?",(i,)).fetchone(); return dict(x) if x else None
-    def upsert_repo(self,uid,name,ref):
+    def create_team(self,uid,name):
         with self.connect() as c:
-            c.execute("INSERT INTO repositories(user_id,full_name,ref) VALUES(?,?,?) ON CONFLICT(user_id,full_name) DO UPDATE SET ref=excluded.ref",(uid,name,ref))
+            cur=c.execute("INSERT INTO teams(name,owner_id) VALUES(?,?)",(name,uid)); tid=cur.lastrowid; c.execute("INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,?)",(tid,uid,"owner")); return tid
+    def list_teams(self,uid):
+        with self.connect() as c: return [dict(x) for x in c.execute("SELECT t.* FROM teams t JOIN team_members m ON m.team_id=t.id WHERE m.user_id=?",(uid,)).fetchall()]
+    def add_team_member(self,team_id,login,role="member"):
+        with self.connect() as c:
+            u=c.execute("SELECT id FROM users WHERE login=?",(login,)).fetchone()
+            if not u: return False
+            c.execute("INSERT OR IGNORE INTO team_members(team_id,user_id,role) VALUES(?,?,?)",(team_id,u["id"],role)); return True
+    def team_access(self,uid,team_id):
+        with self.connect() as c: return c.execute("SELECT 1 FROM team_members WHERE team_id=? AND user_id=?",(team_id,uid)).fetchone() is not None
+    def upsert_repo(self,uid,name,ref,team_id=None):
+        with self.connect() as c:
+            c.execute("INSERT INTO repositories(user_id,full_name,ref,team_id) VALUES(?,?,?,?) ON CONFLICT(user_id,full_name) DO UPDATE SET ref=excluded.ref",(uid,name,ref,team_id))
             return c.execute("SELECT id FROM repositories WHERE user_id=? AND full_name=?",(uid,name)).fetchone()["id"]
     def start_scan(self,rid):
         with self.connect() as c: return c.execute("INSERT INTO scans(repository_id,status,started_at) VALUES(?,?,?)",(rid,"running",now())).lastrowid
