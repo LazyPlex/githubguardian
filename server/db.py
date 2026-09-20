@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS alert_configs(id INTEGER PRIMARY KEY AUTOINCREMENT,us
         with self.connect() as c:
             before = c.execute("SELECT 1 FROM findings WHERE repository_id=? AND fingerprint=?",(rid,fp)).fetchone() is not None
             c.execute("""INSERT INTO findings(repository_id,fingerprint,detector,severity,path,line,redacted_match,recommendation,status,first_seen,last_seen) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(repository_id,fingerprint) DO UPDATE SET severity=excluded.severity,path=excluded.path,line=excluded.line,redacted_match=excluded.redacted_match,recommendation=excluded.recommendation,last_seen=excluded.last_seen,status='open'""",(rid,fp,f.detector,f.severity,f.path,f.line,f.redacted_match,f.recommendation,"open",now(),now()))
+            return not before
     def close_missing(self,rid,seen):
         with self.connect() as c:
             for x in c.execute("SELECT fingerprint FROM findings WHERE repository_id=? AND status='open'",(rid,)).fetchall():
