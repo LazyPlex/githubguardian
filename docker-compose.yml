@@ -1,0 +1,14 @@
+services:
+  guardian:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - guardian-data:/app/data
+    environment:
+      GUARDIAN_DB: /app/data/guardian.db
+
+volumes:
+  guardian-data:
