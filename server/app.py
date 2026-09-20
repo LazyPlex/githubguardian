@@ -29,10 +29,14 @@ def health(): return {"status":"ok"}
 def auth_github():
     if not oauth.configured: raise HTTPException(503,"GitHub OAuth is not configured")
     state=secrets.token_urlsafe(24)
-    return RedirectResponse(oauth.authorize_url(state))
+    response=RedirectResponse(oauth.authorize_url(state))
+    response.set_cookie("guardian_oauth_state",state,httponly=True,samesite="lax",secure=os.getenv("COOKIE_SECURE","0")=="1")
+    return response
 
 @app.get("/auth/github/callback")
-def auth_callback(code:str):
+def auth_callback(request:Request,code:str,state:str|None=None):
+    expected=request.cookies.get("guardian_oauth_state")
+    if not state or not expected or not secrets.compare_digest(state,expected): raise HTTPException(400,"Invalid OAuth state")
     token=oauth.exchange(code); user=oauth.user(token); uid=db.upsert_user(user,token)
     response=RedirectResponse("/dashboard"); response.set_cookie("guardian_user",str(uid),httponly=True,samesite="lax",secure=os.getenv("COOKIE_SECURE","0")=="1"); response.delete_cookie("guardian_oauth_state"); return response
 
@@ -51,7 +55,24 @@ def add_repo(payload:RepoRequest,request:Request):
     rid=db.upsert_repo(user["id"],repo["full_name"],payload.ref or repo["default_branch"]); scanner.queue_scan(rid)
     return {"repository":repo["full_name"],"status":"queued"}
 
-@app.get("/api/repos")\ndef repos(request:Request): return {"repositories":db.list_repositories(current_user(request)["id"])}\n\n@app.get("/api/alerts")\ndef alerts(request:Request): return {"alerts":db.list_alerts(current_user(request)["id"])}\n\nclass AlertRequest(BaseModel):\n    kind:str\n    target:str\n\n@app.post("/api/alerts")\ndef add_alert(payload:AlertRequest,request:Request):\n    user=current_user(request)\n    if payload.kind not in {"slack","email"}: raise HTTPException(400,"Unsupported alert type")\n    db.add_alert(user["id"],payload.kind,payload.target)\n    return {"status":"configured"}\n\n@app.get("/api/findings")
+@app.get("/api/repos")
+def repos(request:Request): return {"repositories":db.list_repositories(current_user(request)["id"])}
+
+@app.get("/api/alerts")
+def alerts(request:Request): return {"alerts":db.list_alerts(current_user(request)["id"])}
+
+class AlertRequest(BaseModel):
+    kind:str
+    target:str
+
+@app.post("/api/alerts")
+def add_alert(payload:AlertRequest,request:Request):
+    user=current_user(request)
+    if payload.kind not in {"slack","email"}: raise HTTPException(400,"Unsupported alert type")
+    db.add_alert(user["id"],payload.kind,payload.target)
+    return {"status":"configured"}
+
+@app.get("/api/findings")
 def findings(request:Request): return {"findings":db.list_findings(current_user(request)["id"])}
 
 @app.get("/dashboard",response_class=HTMLResponse)
