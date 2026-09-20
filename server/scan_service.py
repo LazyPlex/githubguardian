@@ -21,7 +21,7 @@ class ScanService:
                     with self.db.connect() as c: uid=c.execute("SELECT user_id FROM repositories WHERE id=?",(rid,)).fetchone()["user_id"]
                     message=f"GitHub Guardian: new {f.severity} finding in {row['full_name']} at {f.path}:{f.line} ({f.detector})"
                     for alert in self.db.list_alerts(uid):
-                        if alert["kind"]=="slack": notify_slack(message)
-                        elif alert["kind"]=="email": notify_email("GitHub Guardian security finding",message)
+                        if alert["kind"]=="slack": notify_slack(message,alert["target"])
+                        elif alert["kind"]=="email": notify_email("GitHub Guardian security finding",message,alert["target"])
             self.db.close_missing(rid,seen); self.db.finish_scan(sid,"completed",len(findings))
         except Exception: self.db.finish_scan(sid,"failed",0)
