@@ -20,3 +20,8 @@ jobs:
     assert "workflow-pr-write" in ids
     assert "workflow-pipe-shell" in ids
     assert "workflow-unpinned-action" in ids
+
+
+def test_detects_one_line_write_all():
+    findings = analyze_workflow(".github/workflows/test.yml", "permissions: write-all\n")
+    assert any(item["id"] == "workflow-write-all" for item in findings)
