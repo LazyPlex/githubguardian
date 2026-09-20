@@ -1,0 +1,31 @@
+name: GitHub Guardian Weekly Audit
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install GitHub Guardian
+        run: pip install .
+      - name: Run self-audit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          githubguardian "${{ github.repository }}" --history 20 --dependencies --dashboard guardian-report.html --fail-on high
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: githubguardian-weekly-report
+          path: guardian-report.html
