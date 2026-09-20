@@ -15,5 +15,8 @@ dev = ["pytest>=8.0,<9"]
 [project.scripts]
 githubguardian = "guardian.cli:main"
 
+[tool.setuptools.packages.find]
+include = ["guardian*", "server*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
