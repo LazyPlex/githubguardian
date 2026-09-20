@@ -1,0 +1,22 @@
+name: Bug report
+description: Report a reproducible GitHub Guardian problem
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include API keys, passwords, tokens, private keys, or other secrets in this issue.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the problem and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include safe reproduction steps using fake credentials only.
+    validations:
+      required: true
