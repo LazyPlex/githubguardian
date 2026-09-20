@@ -6,11 +6,12 @@ Open-source defensive security scanner for detecting accidentally exposed secret
 
 - Current branch secret scanning
 - Historical commit diff scanning with deduplication
-- Pull request diff scanning
+- Pull request diff scanning with paginated file retrieval
 - GitHub, AWS, Google, database, JWT and generic credential detectors
 - Redacted findings
 - SARIF 2.1.0 output
 - Configurable suppressions via `.githubguardianignore`
+- Baseline support for accepting known findings while detecting new ones
 - CI-friendly severity exit codes
 - Repository security health checks and a 0 to 100 score
 - GitHub Actions security posture checks
@@ -18,7 +19,8 @@ Open-source defensive security scanner for detecting accidentally exposed secret
 - Static HTML dashboard generation
 - Optional GitHub Pages hosted dashboard workflow
 - Hardened GitHub Actions PR scanning
-- Weekly dependency update checks
+- Retry and rate-limit aware GitHub API client
+- Weekly audit workflow and Dependabot updates
 
 ## Quick start
 
@@ -31,16 +33,29 @@ Requires Python 3.10+.
 Useful commands:
 
     githubguardian owner/repository --history 20
+    githubguardian owner/repository --history-all
     githubguardian owner/repository --pr 123
     githubguardian owner/repository --dependencies
+    githubguardian owner/repository --baseline guardian-baseline.json
+    githubguardian owner/repository --write-baseline guardian-baseline.json
     githubguardian owner/repository --json
     githubguardian owner/repository --sarif guardian.sarif
     githubguardian owner/repository --dashboard report.html
-    githubguardian owner/repository --history 1000
-    githubguardian owner/repository --history-all
     githubguardian owner/repository --fail-on high
 
 Set `GITHUB_TOKEN` for higher GitHub API limits. The scanner never validates or uses discovered credentials.
+
+## Baselines
+
+Generate a reviewed baseline from the current scan:
+
+    githubguardian owner/repository --write-baseline guardian-baseline.json
+
+Then fail only on findings that are not already present in that baseline:
+
+    githubguardian owner/repository --baseline guardian-baseline.json --fail-on high
+
+Baselines are local JSON files. Review them before committing and never put real secrets in them.
 
 ## What the audits cover
 
@@ -56,7 +71,7 @@ These are review signals, not proof of exploitability.
 
 ### Dependencies
 
-The optional `--dependencies` flag sends supported manifest coordinates to the public OSV vulnerability database. This feature reports known vulnerability records and does not install, execute, or authenticate with anything.
+The optional `--dependencies` flag sends supported manifest coordinates to the public OSV vulnerability database. It reports known vulnerability records and does not install, execute, or authenticate with anything.
 
 Network access to OSV is required for this check.
 
@@ -66,15 +81,11 @@ Use GitHub Guardian only on repositories you are authorized to assess. Never aut
 
 ## Architecture
 
-Repository or PR -> GitHub API -> file or diff retrieval -> deterministic detectors and static audits -> suppression -> severity sorting -> JSON, SARIF, CLI or HTML report.
+Repository or PR -> GitHub API -> file or diff retrieval -> deterministic detectors and static audits -> suppression or baseline -> severity sorting -> JSON, SARIF, CLI or HTML report.
 
 ## Historical coverage
 
-The history mode scans commit patches, including deleted lines. Use `--history N` for a bounded scan or `--history-all` to paginate through every reachable commit on the selected ref. Exhaustive mode can be slow and is subject to GitHub API rate limits. Patch scanning is not a reconstruction of every historical tree state.
-
-## Roadmap
-
-The core v0.5 scanner is implemented. Future extensions can focus on deeper git tree reconstruction, richer dependency version-range handling, and remediation integrations. Code Scanning and GitHub Pages workflows are included.
+History mode scans commit patches, including deleted lines. Use `--history N` for a bounded scan or `--history-all` to paginate through every reachable commit on the selected ref. Exhaustive mode can be slow and is subject to GitHub API rate limits. Patch scanning is not a reconstruction of every historical tree state.
 
 ## Development
 
