@@ -58,7 +58,23 @@ class GitHubClient:
         return raw.decode("utf-8", errors="replace")
 
     def commits(self, owner: str, repo: str, ref: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
-        return self._get(f"/repos/{owner}/{repo}/commits", sha=ref, per_page=min(max(limit, 1), 100))
+        limit = min(max(limit, 1), 1000)
+        results: list[dict[str, Any]] = []
+        page = 1
+        while len(results) < limit:
+            batch = self._get(
+                f"/repos/{owner}/{repo}/commits",
+                sha=ref,
+                per_page=min(100, limit - len(results)),
+                page=page,
+            )
+            if not batch:
+                break
+            results.extend(batch)
+            if len(batch) < 100:
+                break
+            page += 1
+        return results[:limit]
 
     def commit(self, owner: str, repo: str, sha: str) -> dict[str, Any]:
         return self._get(f"/repos/{owner}/{repo}/commits/{sha}")
