@@ -11,15 +11,26 @@ def write_dashboard(output: str, repository: str, findings, checks, score: int) 
         for f in findings
     )
     check_rows = "".join(
-        f"<tr><td>{html.escape(c['id'])}</td><td>{html.escape(c['status'])}</td><td>{html.escape(c['message'])}</td></tr>"
+        f"<tr><td>{html.escape(c['id'])}</td><td>{html.escape(c['status'])}</td>"
+        f"<td>{html.escape(c['message'])}</td></tr>"
         for c in checks
     )
     document = f"""<!doctype html>
-<html><head><meta charset="utf-8"><title>GitHub Guardian Report</title>
-<style>body{{font-family:system-ui;margin:40px;max-width:1200px}}table{{border-collapse:collapse;width:100%}}td,th{{border:1px solid #ddd;padding:8px;text-align:left}}.score{{font-size:48px;font-weight:700}}</style>
-</head><body><h1>GitHub Guardian</h1><p>{html.escape(repository)}</p>
-<div class="score">{score}/100</div><h2>Security findings</h2>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GitHub Guardian Report</title>
+<style>
+body{{font-family:system-ui;margin:40px;max-width:1200px;line-height:1.45}}
+table{{border-collapse:collapse;width:100%;margin-bottom:32px}}
+td,th{{border:1px solid #ddd;padding:8px;text-align:left;vertical-align:top}}
+.score{{font-size:48px;font-weight:700}}
+</style></head><body>
+<h1>GitHub Guardian</h1><p>{html.escape(repository)}</p>
+<div class="score">{score}/100</div>
+<h2>Security findings</h2>
 <table><tr><th>Severity</th><th>Detector</th><th>File</th><th>Line</th><th>Redacted match</th></tr>{rows}</table>
-<h2>Repository checks</h2><table><tr><th>Check</th><th>Status</th><th>Message</th></tr>{check_rows}</table>
+<h2>Repository checks</h2>
+<table><tr><th>Check</th><th>Status</th><th>Message</th></tr>{check_rows}</table>
 </body></html>"""
-    output_path = Path(output)\n    output_path.parent.mkdir(parents=True, exist_ok=True)\n    output_path.write_text(document, encoding="utf-8")
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(document, encoding="utf-8")
