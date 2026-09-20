@@ -1,24 +1,30 @@
-"""Historical commit scanning helpers."""
+"""Historical and pull request scanning."""
 
 from __future__ import annotations
-
-from collections.abc import Iterable
 
 from .detectors import scan_text
 from .github import GitHubClient
 from .models import Finding
 
 
-def scan_commit_files(client: GitHubClient, owner: str, repo: str, commit_sha: str,
-                      paths: Iterable[str], max_file_bytes: int = 1_000_000) -> list[Finding]:
+def scan_history(client: GitHubClient, owner: str, repo: str, ref: str | None, limit: int) -> list[Finding]:
     findings: list[Finding] = []
-    tree = client.tree(owner, repo, commit_sha)
-    by_path = {item.get("path"): item for item in tree if item.get("type") == "blob"}
-    for path in paths:
-        entry = by_path.get(path)
-        if not entry or entry.get("size", 0) > max_file_bytes:
-            continue
-        content = client.blob_text(owner, repo, entry["sha"], max_file_bytes)
-        if content is not None:
-            findings.extend(scan_text(content, path))
+    commits = client.commits(owner, repo, ref, limit)
+    for commit in commits:
+        sha = commit["sha"]
+        details = client.commit(owner, repo, sha)
+        for file in details.get("files", []):
+            patch = file.get("patch") or ""
+            if not patch:
+                continue
+            findings.extend(scan_text(patch, f"{file.get('filename', 'unknown')} @ {sha[:8]}"))
+    return findings
+
+
+def scan_pull_request(client: GitHubClient, owner: str, repo: str, number: int) -> list[Finding]:
+    findings: list[Finding] = []
+    for file in client.pull_request_files(owner, repo, number):
+        patch = file.get("patch") or ""
+        if patch:
+            findings.extend(scan_text(patch, f"{file.get('filename', 'unknown')} @ PR#{number}"))
     return findings
