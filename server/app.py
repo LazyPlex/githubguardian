@@ -79,6 +79,13 @@ def findings(request:Request): return {"findings":db.list_findings(current_user(
 def dashboard(request:Request):
     current_user(request); return (ROOT/"static"/"dashboard.html").read_text(encoding="utf-8")
 
-@app.post("/api/internal/scan-all")\ndef scan_all(request:Request):\n    if not os.getenv("GUARDIAN_SCHEDULE_TOKEN") or request.headers.get("X-Guardian-Schedule-Token") != os.getenv("GUARDIAN_SCHEDULE_TOKEN"): raise HTTPException(403,"Forbidden")\n    for repo in db.list_repos_all(): scanner.queue_scan(repo["id"])\n    return {"status":"queued"}\n\n@app.post("/api/logout")
+@app.post("/api/internal/scan-all")
+def scan_all(request:Request):
+    if not os.getenv("GUARDIAN_SCHEDULE_TOKEN") or request.headers.get("X-Guardian-Schedule-Token") != os.getenv("GUARDIAN_SCHEDULE_TOKEN"):
+        raise HTTPException(403,"Forbidden")
+    for repo in db.list_repos_all(): scanner.queue_scan(repo["id"])
+    return {"status":"queued"}
+
+@app.post("/api/logout")
 def logout():
     response=RedirectResponse("/",status_code=303); response.delete_cookie("guardian_user"); return response
