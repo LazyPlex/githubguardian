@@ -13,11 +13,11 @@ OSV_BATCH = "https://api.osv.dev/v1/querybatch"
 
 def _parse_requirements(text: str) -> list[tuple[str, str]]:
     out = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or line.startswith("-"):
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line or line.startswith(("-", "--", "git+", "http:", "https:")):
             continue
-        match = re.match(r"^([A-Za-z0-9_.-]+)\s*(?:==|@)\s*([A-Za-z0-9_.+!-]+)", line)
+        match = re.match(r"^([A-Za-z0-9_.-]+)\s*==\s*([A-Za-z0-9_.+!~-]+)\s*$", line)
         if match:
             out.append(match.groups())
     return out
@@ -26,12 +26,14 @@ def _parse_requirements(text: str) -> list[tuple[str, str]]:
 def _parse_package_json(text: str) -> list[tuple[str, str]]:
     data = json.loads(text)
     out = []
-    for section in ("dependencies", "devDependencies"):
+    for section in ("dependencies", "devDependencies", "optionalDependencies"):
         for name, version in (data.get(section) or {}).items():
-            if isinstance(version, str):
-                clean = version.lstrip("^~>=< ")
-                if re.match(r"^\d", clean):
-                    out.append((name, clean))
+            if not isinstance(version, str):
+                continue
+            clean = version.strip().lstrip("^~>=< ")
+            match = re.match(r"^(\d+(?:\.\d+){0,2}(?:[-+][0-9A-Za-z.-]+)?)$", clean)
+            if match:
+                out.append((name, clean))
     return out
 
 
@@ -40,18 +42,24 @@ def _parse_go_mod(text: str) -> list[tuple[str, str]]:
 
 
 def _parse_cargo(text: str) -> list[tuple[str, str]]:
-    return [(a, b) for a, b in re.findall(r"^\s*([A-Za-z0-9_-]+)\s*=\s*["']?([0-9][^"'\n ]*)", text, re.M)]
+    out = []
+    for name, value in re.findall(r"""^\s*([A-Za-z0-9_-]+)\s*=\s*["']?([^"']+)["']?\s*$""", text, re.M):
+        clean = value.strip()
+        if re.match(r"^\d", clean):
+            out.append((name, clean))
+    return out
 
 
 def extract_dependencies(path: str, text: str) -> list[tuple[str, str]]:
     try:
-        if path.lower().endswith("requirements.txt"):
+        lower = path.lower()
+        if lower.endswith("requirements.txt"):
             return _parse_requirements(text)
-        if path.lower().endswith("package.json"):
+        if lower.endswith("package.json"):
             return _parse_package_json(text)
-        if path.lower().endswith("go.mod"):
+        if lower.endswith("go.mod"):
             return _parse_go_mod(text)
-        if path.lower().endswith("cargo.toml"):
+        if lower.endswith("cargo.toml"):
             return _parse_cargo(text)
     except (ValueError, json.JSONDecodeError):
         return []
@@ -61,12 +69,17 @@ def extract_dependencies(path: str, text: str) -> list[tuple[str, str]]:
 def scan_dependencies(dependencies: list[tuple[str, str]], timeout: int = 15) -> list[dict[str, Any]]:
     if not dependencies:
         return []
-    payload = {"queries": [{"package": {"name": name}, "version": version} for name, version in dependencies]}
-    response = requests.post(OSV_BATCH, json=payload, timeout=timeout)
-    response.raise_for_status()
-    results = response.json().get("results", [])
+    unique = list(dict.fromkeys(dependencies))
+    payload = {"queries": [{"package": {"name": name}, "version": version} for name, version in unique]}
+    try:
+        response = requests.post(OSV_BATCH, json=payload, timeout=timeout)
+        response.raise_for_status()
+        results = response.json().get("results", [])
+    except (requests.RequestException, ValueError) as exc:
+        raise RuntimeError(f"OSV dependency lookup failed: {exc}") from exc
+
     findings = []
-    for (name, version), result in zip(dependencies, results):
+    for (name, version), result in zip(unique, results):
         for vuln in result.get("vulns", []):
             findings.append({
                 "id": vuln.get("id", "OSV"),
