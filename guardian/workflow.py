@@ -29,7 +29,7 @@ def analyze_workflow(path: str, content: str) -> list[dict]:
 
     for line_no, line in enumerate(content.splitlines(), 1):
         stripped = line.strip()
-        if not stripped.startswith("uses:") or "@" not in stripped:
+        if not (stripped.startswith("uses:") or stripped.startswith("- uses:")) or "@" not in stripped:
             continue
         ref = stripped.rsplit("@", 1)[1].strip()
         if re.fullmatch(r"(?:main|master|latest|v?\d+(?:\.\d+)*)", ref, re.I):
