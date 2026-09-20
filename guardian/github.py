@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import os
+import time
 from typing import Any
 
 import requests
@@ -17,8 +18,9 @@ class GitHubError(RuntimeError):
 
 
 class GitHubClient:
-    def __init__(self, token: str | None = None, timeout: int = 20) -> None:
+    def __init__(self, token: str | None = None, timeout: int = 20, retries: int = 2) -> None:
         self.timeout = timeout
+        self.retries = max(0, retries)
         self.session = requests.Session()
         self.session.headers.update({
             "Accept": "application/vnd.github+json",
@@ -30,14 +32,34 @@ class GitHubClient:
             self.session.headers["Authorization"] = f"Bearer {token}"
 
     def _get(self, path: str, **params: Any) -> Any:
-        response = self.session.get(f"{API_ROOT}{path}", params=params or None, timeout=self.timeout)
-        if response.status_code == 403:
-            raise GitHubError("GitHub returned 403. Check rate limits or token permissions.")
-        if response.status_code == 404:
-            raise GitHubError("Repository or resource was not found.")
-        if not response.ok:
-            raise GitHubError(f"GitHub API error {response.status_code}: {response.text[:300]}")
-        return response.json()
+        last_error = None
+        for attempt in range(self.retries + 1):
+            try:
+                response = self.session.get(
+                    f"{API_ROOT}{path}", params=params or None, timeout=self.timeout
+                )
+            except requests.RequestException as exc:
+                last_error = exc
+                if attempt < self.retries:
+                    time.sleep(2 ** attempt)
+                    continue
+                raise GitHubError(f"GitHub request failed: {exc}") from exc
+
+            if response.ok:
+                return response.json()
+            retryable = response.status_code == 429 or response.status_code >= 500
+            if response.status_code == 403:
+                remaining = response.headers.get("X-RateLimit-Remaining")
+                if remaining == "0":
+                    raise GitHubError("GitHub API rate limit reached. Set GITHUB_TOKEN or wait before retrying.")
+                retryable = False
+            if not retryable or attempt >= self.retries:
+                if response.status_code == 404:
+                    raise GitHubError("Repository or resource was not found.")
+                raise GitHubError(f"GitHub API error {response.status_code}: {response.text[:300]}")
+            time.sleep(2 ** attempt)
+
+        raise GitHubError(f"GitHub request failed: {last_error}")
 
     def repository(self, owner: str, repo: str) -> dict[str, Any]:
         return self._get(f"/repos/{owner}/{repo}")
@@ -64,12 +86,7 @@ class GitHubClient:
         page = 1
         while limit is None or len(results) < limit:
             remaining = 100 if limit is None else min(100, limit - len(results))
-            batch = self._get(
-                f"/repos/{owner}/{repo}/commits",
-                sha=ref,
-                per_page=remaining,
-                page=page,
-            )
+            batch = self._get(f"/repos/{owner}/{repo}/commits", sha=ref, per_page=remaining, page=page)
             if not batch:
                 break
             results.extend(batch)
@@ -84,8 +101,21 @@ class GitHubClient:
     def pull_request(self, owner: str, repo: str, number: int) -> dict[str, Any]:
         return self._get(f"/repos/{owner}/{repo}/pulls/{number}")
 
-    def pull_request_files(self, owner: str, repo: str, number: int, limit: int = 100) -> list[dict[str, Any]]:
-        return self._get(f"/repos/{owner}/{repo}/pulls/{number}/files", per_page=min(max(limit, 1), 100))
+    def pull_request_files(self, owner: str, repo: str, number: int, limit: int | None = 100) -> list[dict[str, Any]]:
+        if limit is not None and limit <= 0:
+            return []
+        results: list[dict[str, Any]] = []
+        page = 1
+        while limit is None or len(results) < limit:
+            remaining = 100 if limit is None else min(100, limit - len(results))
+            batch = self._get(f"/repos/{owner}/{repo}/pulls/{number}/files", per_page=remaining, page=page)
+            if not batch:
+                break
+            results.extend(batch)
+            if len(batch) < remaining:
+                break
+            page += 1
+        return results if limit is None else results[:limit]
 
     def workflow_file(self, owner: str, repo: str, path: str, ref: str | None = None) -> str | None:
         data = self._get(f"/repos/{owner}/{repo}/contents/{path}", **({"ref": ref} if ref else {}))
