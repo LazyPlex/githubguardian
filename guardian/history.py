@@ -18,11 +18,11 @@ def _dedupe(findings: list[Finding]) -> list[Finding]:
     return result
 
 
-def scan_history(client: GitHubClient, owner: str, repo: str, ref: str | None, limit: int) -> list[Finding]:
-    if limit <= 0:
+def scan_history(client: GitHubClient, owner: str, repo: str, ref: str | None, limit: int | None) -> list[Finding]:
+    if limit is not None and limit <= 0:
         return []
     findings: list[Finding] = []
-    commits = client.commits(owner, repo, ref, min(limit, 1000))
+    commits = client.commits(owner, repo, ref, limit)
     for commit in commits:
         sha = commit["sha"]
         details = client.commit(owner, repo, sha)
