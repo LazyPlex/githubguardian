@@ -96,3 +96,34 @@ Never commit real credentials.
 ## License
 
 MIT
+
+## SaaS mode
+
+GitHub Guardian now includes an optional hosted service layer under `server/`.
+
+Capabilities:
+
+- GitHub OAuth sign-in
+- Multiple repository monitoring per account
+- SQLite persistence for repositories, scans and findings
+- Finding lifecycle states: open, acknowledged and resolved
+- Configurable Slack and email webhook alerts
+- Scheduled rescans through GitHub Actions
+- Browser dashboard
+- Docker and Docker Compose deployment
+
+Run locally:
+
+    pip install -r requirements-saas.txt
+    GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=... uvicorn server.app:app --host 0.0.0.0 --port 8000
+
+Required deployment secrets:
+
+    GITHUB_CLIENT_ID
+    GITHUB_CLIENT_SECRET
+    GITHUB_OAUTH_REDIRECT_URI
+    GUARDIAN_SCHEDULE_TOKEN
+
+For scheduled scanning, configure `GUARDIAN_URL` and `GUARDIAN_SCHEDULE_TOKEN` as GitHub Actions secrets. Do not commit OAuth credentials, schedule tokens, database files or real secrets.
+
+The hosted layer is intentionally defensive. It only invokes the existing scanner against repositories the signed-in GitHub account can access and never attempts to authenticate with discovered credentials.
