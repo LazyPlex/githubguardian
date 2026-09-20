@@ -25,7 +25,7 @@ class GitHubClient:
         self.session.headers.update({
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": API_VERSION,
-            "User-Agent": "githubguardian/0.5.0",
+            "User-Agent": "githubguardian/0.6.0",
         })
         token = token or os.getenv("GITHUB_TOKEN")
         if token:
