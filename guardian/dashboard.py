@@ -22,4 +22,4 @@ def write_dashboard(output: str, repository: str, findings, checks, score: int) 
 <table><tr><th>Severity</th><th>Detector</th><th>File</th><th>Line</th><th>Redacted match</th></tr>{rows}</table>
 <h2>Repository checks</h2><table><tr><th>Check</th><th>Status</th><th>Message</th></tr>{check_rows}</table>
 </body></html>"""
-    Path(output).write_text(document, encoding="utf-8")
+    output_path = Path(output)\n    output_path.parent.mkdir(parents=True, exist_ok=True)\n    output_path.write_text(document, encoding="utf-8")
