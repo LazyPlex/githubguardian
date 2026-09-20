@@ -55,6 +55,29 @@ def add_repo(payload:RepoRequest,request:Request):
     rid=db.upsert_repo(user["id"],repo["full_name"],payload.ref or repo["default_branch"]); scanner.queue_scan(rid)
     return {"repository":repo["full_name"],"status":"queued"}
 
+class TeamRequest(BaseModel):
+    name:str
+
+class MemberRequest(BaseModel):
+    login:str
+    role:str="member"
+
+@app.post("/api/teams")
+def create_team(payload:TeamRequest,request:Request):
+    return {"team_id":db.create_team(current_user(request)["id"],payload.name)}
+
+@app.get("/api/teams")
+def teams(request:Request):
+    return {"teams":db.list_teams(current_user(request)["id"])}
+
+@app.post("/api/teams/{team_id}/members")
+def add_member(team_id:int,payload:MemberRequest,request:Request):
+    uid=current_user(request)["id"]
+    if not db.team_access(uid,team_id): raise HTTPException(403,"Not a team member")
+    if payload.role not in {"member","admin","owner"}: raise HTTPException(400,"Invalid role")
+    if not db.add_team_member(team_id,payload.login,payload.role): raise HTTPException(404,"GitHub user must sign in first")
+    return {"status":"added"}
+
 @app.get("/api/repos")
 def repos(request:Request): return {"repositories":db.list_repositories(current_user(request)["id"])}
 
