@@ -1,0 +1,31 @@
+name: GitHub Guardian Code Scanning
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  guardian:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install GitHub Guardian
+        run: pip install .
+      - name: Generate SARIF
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: githubguardian "${{ github.repository }}" --sarif guardian.sarif --fail-on high
+        continue-on-error: true
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: guardian.sarif
