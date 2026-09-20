@@ -3,3 +3,12 @@
 # detector:path
 # path:line
 # detector:path:line
+
+# Test fixtures intentionally contain fake secret-shaped values.
+# Keep the fixtures for detector tests without making the self-audit fail.
+github_token:tests/test_detectors.py
+stripe_secret_key:tests/test_detectors.py
+npm_token:tests/test_detectors.py
+slack_token:tests/test_detectors.py
+private_key:tests/test_detectors.py
+generic_api_key_assignment:tests/test_scanner.py
