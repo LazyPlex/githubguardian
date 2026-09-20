@@ -22,7 +22,7 @@ def scan_history(client: GitHubClient, owner: str, repo: str, ref: str | None, l
     if limit <= 0:
         return []
     findings: list[Finding] = []
-    commits = client.commits(owner, repo, ref, min(limit, 100))
+    commits = client.commits(owner, repo, ref, min(limit, 1000))
     for commit in commits:
         sha = commit["sha"]
         details = client.commit(owner, repo, sha)
