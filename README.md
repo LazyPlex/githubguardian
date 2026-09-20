@@ -37,6 +37,7 @@ Useful commands:
     githubguardian owner/repository --sarif guardian.sarif
     githubguardian owner/repository --dashboard report.html
     githubguardian owner/repository --history 1000
+    githubguardian owner/repository --history-all
     githubguardian owner/repository --fail-on high
 
 Set `GITHUB_TOKEN` for higher GitHub API limits. The scanner never validates or uses discovered credentials.
@@ -69,7 +70,7 @@ Repository or PR -> GitHub API -> file or diff retrieval -> deterministic detect
 
 ## Historical coverage
 
-The history mode scans patches from recent commits. It is useful for detecting secrets that appeared in recent changes, including deleted lines, but it is not a complete reconstruction of every historical tree state.
+The history mode scans commit patches, including deleted lines. Use `--history N` for a bounded scan or `--history-all` to paginate through every reachable commit on the selected ref. Exhaustive mode can be slow and is subject to GitHub API rate limits. Patch scanning is not a reconstruction of every historical tree state.
 
 ## Roadmap
 
