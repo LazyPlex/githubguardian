@@ -57,24 +57,26 @@ class GitHubClient:
             return None
         return raw.decode("utf-8", errors="replace")
 
-    def commits(self, owner: str, repo: str, ref: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
-        limit = min(max(limit, 1), 1000)
+    def commits(self, owner: str, repo: str, ref: str | None = None, limit: int | None = 20) -> list[dict[str, Any]]:
+        if limit is not None and limit <= 0:
+            return []
         results: list[dict[str, Any]] = []
         page = 1
-        while len(results) < limit:
+        while limit is None or len(results) < limit:
+            remaining = 100 if limit is None else min(100, limit - len(results))
             batch = self._get(
                 f"/repos/{owner}/{repo}/commits",
                 sha=ref,
-                per_page=min(100, limit - len(results)),
+                per_page=remaining,
                 page=page,
             )
             if not batch:
                 break
             results.extend(batch)
-            if len(batch) < 100:
+            if len(batch) < remaining:
                 break
             page += 1
-        return results[:limit]
+        return results if limit is None else results[:limit]
 
     def commit(self, owner: str, repo: str, sha: str) -> dict[str, Any]:
         return self._get(f"/repos/{owner}/{repo}/commits/{sha}")
