@@ -105,8 +105,9 @@ Capabilities:
 
 - GitHub OAuth sign-in
 - Multiple repository monitoring per account
-- SQLite persistence for repositories, scans and findings
+- SQLite persistence for repositories, teams, scans and findings
 - Finding lifecycle states: open, acknowledged and resolved
+- Team accounts with shared repository monitoring
 - Configurable Slack and email webhook alerts
 - Scheduled rescans through GitHub Actions
 - Browser dashboard
