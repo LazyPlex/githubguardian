@@ -16,6 +16,7 @@ Open-source defensive security scanner for detecting accidentally exposed secret
 - GitHub Actions security posture checks
 - Optional OSV dependency vulnerability checks
 - Static HTML dashboard generation
+- Optional GitHub Pages hosted dashboard workflow
 - Hardened GitHub Actions PR scanning
 - Weekly dependency update checks
 
@@ -35,6 +36,7 @@ Useful commands:
     githubguardian owner/repository --json
     githubguardian owner/repository --sarif guardian.sarif
     githubguardian owner/repository --dashboard report.html
+    githubguardian owner/repository --history 1000
     githubguardian owner/repository --fail-on high
 
 Set `GITHUB_TOKEN` for higher GitHub API limits. The scanner never validates or uses discovered credentials.
@@ -71,7 +73,7 @@ The history mode scans patches from recent commits. It is useful for detecting s
 
 ## Roadmap
 
-The core v0.5 scanner is implemented. Future extensions can focus on more provider-specific detectors, deeper git archaeology, richer dependency version-range handling, GitHub code scanning upload workflows, hosted dashboards, and remediation integrations.
+The core v0.5 scanner is implemented. Future extensions can focus on deeper git tree reconstruction, richer dependency version-range handling, and remediation integrations. Code Scanning and GitHub Pages workflows are included.
 
 ## Development
 
