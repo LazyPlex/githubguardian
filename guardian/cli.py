@@ -41,7 +41,9 @@ def main() -> int:
         owner, repo = parse_repository(args.repository)
         client = GitHubClient(token=args.token)
         metadata, findings = scan_repository(client, owner, repo, ref=args.ref, max_files=args.max_files, max_file_bytes=args.max_file_bytes)
-        if args.history:
+        if args.history_all:
+            findings.extend(scan_history(client, owner, repo, args.ref, None))
+        elif args.history:
             findings.extend(scan_history(client, owner, repo, args.ref, args.history))
         if args.pr:
             findings.extend(scan_pull_request(client, owner, repo, args.pr))
