@@ -1,0 +1,22 @@
+name: Guardian SaaS Scheduler
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger scheduled scans
+        env:
+          GUARDIAN_URL: ${{ secrets.GUARDIAN_URL }}
+          GUARDIAN_SCHEDULE_TOKEN: ${{ secrets.GUARDIAN_SCHEDULE_TOKEN }}
+        run: |
+          test -n "$GUARDIAN_URL"
+          test -n "$GUARDIAN_SCHEDULE_TOKEN"
+          curl --fail --silent --show-error -X POST "$GUARDIAN_URL/api/internal/scan-all" -H "X-Guardian-Schedule-Token: $GUARDIAN_SCHEDULE_TOKEN"
