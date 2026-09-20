@@ -17,6 +17,20 @@ def test_detects_aws_access_key():
     assert findings[0].detector == "aws_access_key"
 
 
+def test_detects_database_url():
+    findings = scan_text("DATABASE_URL=postgres://demo:fakepass@localhost:5432/app", ".env")
+
+    assert len(findings) == 1
+    assert findings[0].detector == "database_url"
+
+
+def test_detects_private_key_header():
+    findings = scan_text("-----BEGIN RSA PRIVATE KEY-----", "key.txt")
+
+    assert len(findings) == 1
+    assert findings[0].severity == "critical"
+
+
 def test_ignores_normal_text():
     findings = scan_text("This project has no credentials.", "README.md")
 
