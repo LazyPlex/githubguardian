@@ -32,11 +32,21 @@ CREATE TABLE IF NOT EXISTS alert_configs(id INTEGER PRIMARY KEY AUTOINCREMENT,us
         with self.connect() as c: c.execute("UPDATE scans SET status=?,finding_count=?,finished_at=? WHERE id=?",(status,count,now(),sid))
     def upsert_finding(self,rid,fp,f):
         with self.connect() as c:
+            before = c.execute("SELECT 1 FROM findings WHERE repository_id=? AND fingerprint=?",(rid,fp)).fetchone() is not None
             c.execute("""INSERT INTO findings(repository_id,fingerprint,detector,severity,path,line,redacted_match,recommendation,status,first_seen,last_seen) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(repository_id,fingerprint) DO UPDATE SET severity=excluded.severity,path=excluded.path,line=excluded.line,redacted_match=excluded.redacted_match,recommendation=excluded.recommendation,last_seen=excluded.last_seen,status='open'""",(rid,fp,f.detector,f.severity,f.path,f.line,f.redacted_match,f.recommendation,"open",now(),now()))
     def close_missing(self,rid,seen):
         with self.connect() as c:
             for x in c.execute("SELECT fingerprint FROM findings WHERE repository_id=? AND status='open'",(rid,)).fetchall():
                 if x["fingerprint"] not in seen: c.execute("UPDATE findings SET status='resolved',last_seen=? WHERE repository_id=? AND fingerprint=?",(now(),rid,x["fingerprint"]))
+    def list_repositories(self,uid):
+        with self.connect() as c:
+            return [dict(x) for x in c.execute("SELECT * FROM repositories WHERE user_id=? ORDER BY full_name",(uid,)).fetchall()]
+    def add_alert(self,uid,kind,target):
+        with self.connect() as c: c.execute("INSERT INTO alert_configs(user_id,kind,target) VALUES(?,?,?)",(uid,kind,target))
+    def list_alerts(self,uid):
+        with self.connect() as c: return [dict(x) for x in c.execute("SELECT * FROM alert_configs WHERE user_id=? AND enabled=1",(uid,)).fetchall()]
+    def list_repos_all(self):
+        with self.connect() as c: return [dict(x) for x in c.execute("SELECT r.*,u.access_token FROM repositories r JOIN users u ON u.id=r.user_id").fetchall()]
     def list_findings(self,uid):
         with self.connect() as c:
             rows=c.execute("SELECT f.*,r.full_name FROM findings f JOIN repositories r ON r.id=f.repository_id WHERE r.user_id=? ORDER BY last_seen DESC",(uid,)).fetchall(); return [dict(x) for x in rows]
