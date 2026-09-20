@@ -7,9 +7,22 @@ from .github import GitHubClient
 from .models import Finding
 
 
+def _dedupe(findings: list[Finding]) -> list[Finding]:
+    seen = set()
+    result = []
+    for finding in findings:
+        key = (finding.detector, finding.path, finding.line, finding.redacted_match)
+        if key not in seen:
+            seen.add(key)
+            result.append(finding)
+    return result
+
+
 def scan_history(client: GitHubClient, owner: str, repo: str, ref: str | None, limit: int) -> list[Finding]:
+    if limit <= 0:
+        return []
     findings: list[Finding] = []
-    commits = client.commits(owner, repo, ref, limit)
+    commits = client.commits(owner, repo, ref, min(limit, 100))
     for commit in commits:
         sha = commit["sha"]
         details = client.commit(owner, repo, sha)
@@ -18,13 +31,15 @@ def scan_history(client: GitHubClient, owner: str, repo: str, ref: str | None, l
             if not patch:
                 continue
             findings.extend(scan_text(patch, f"{file.get('filename', 'unknown')} @ {sha[:8]}"))
-    return findings
+    return _dedupe(findings)
 
 
 def scan_pull_request(client: GitHubClient, owner: str, repo: str, number: int) -> list[Finding]:
+    if number <= 0:
+        return []
     findings: list[Finding] = []
     for file in client.pull_request_files(owner, repo, number):
         patch = file.get("patch") or ""
         if patch:
             findings.extend(scan_text(patch, f"{file.get('filename', 'unknown')} @ PR#{number}"))
-    return findings
+    return _dedupe(findings)
