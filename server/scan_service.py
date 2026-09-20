@@ -19,7 +19,7 @@ class ScanService:
                 fp=hashlib.sha256(f"{f.detector}|{f.path}|{f.line}|{f.redacted_match}".encode()).hexdigest(); seen.add(fp); created=self.db.upsert_finding(rid,fp,f)
                 if created:
                     with self.db.connect() as c: uid=c.execute("SELECT user_id FROM repositories WHERE id=?",(rid,)).fetchone()["user_id"]
-                    message=f"GitHub Guardian: new {f.severity} finding in {row["full_name"]} at {f.path}:{f.line} ({f.detector})"
+                    message=f"GitHub Guardian: new {f.severity} finding in {row['full_name']} at {f.path}:{f.line} ({f.detector})"
                     for alert in self.db.list_alerts(uid):
                         if alert["kind"]=="slack": notify_slack(message)
                         elif alert["kind"]=="email": notify_email("GitHub Guardian security finding",message)
