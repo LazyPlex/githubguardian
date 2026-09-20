@@ -48,6 +48,11 @@ CREATE TABLE IF NOT EXISTS alert_configs(id INTEGER PRIMARY KEY AUTOINCREMENT,us
         with self.connect() as c: return [dict(x) for x in c.execute("SELECT * FROM alert_configs WHERE user_id=? AND enabled=1",(uid,)).fetchall()]
     def list_repos_all(self):
         with self.connect() as c: return [dict(x) for x in c.execute("SELECT r.*,u.access_token FROM repositories r JOIN users u ON u.id=r.user_id").fetchall()]
+    def update_finding_status(self,uid,finding_id,status):
+        if status not in {"open","acknowledged","resolved"}: raise ValueError("Invalid finding status")
+        with self.connect() as c:
+            c.execute("UPDATE findings SET status=?,last_seen=? WHERE id=? AND repository_id IN (SELECT id FROM repositories WHERE user_id=?)",(status,now(),finding_id,uid))
+            return c.total_changes > 0
     def list_findings(self,uid):
         with self.connect() as c:
             rows=c.execute("SELECT f.*,r.full_name FROM findings f JOIN repositories r ON r.id=f.repository_id WHERE r.user_id=? ORDER BY last_seen DESC",(uid,)).fetchall(); return [dict(x) for x in rows]
