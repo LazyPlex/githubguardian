@@ -22,7 +22,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="githubguardian", description="Defensive security scanner for authorized/public GitHub repositories.")
     parser.add_argument("repository", help="owner/name or GitHub repository URL")
     parser.add_argument("--ref")
-    parser.add_argument("--history", type=int, metavar="N")
+    parser.add_argument("--history", type=int, metavar="N", help="Scan up to N recent commits, paginating through the GitHub API.")
     parser.add_argument("--pr", type=int, metavar="NUMBER")
     parser.add_argument("--max-files", type=int, default=500)
     parser.add_argument("--max-file-bytes", type=int, default=1000000)
