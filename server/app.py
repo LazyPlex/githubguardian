@@ -61,6 +61,17 @@ def repos(request:Request): return {"repositories":db.list_repositories(current_
 @app.get("/api/alerts")
 def alerts(request:Request): return {"alerts":db.list_alerts(current_user(request)["id"])}
 
+class FindingStatusRequest(BaseModel):
+    status:str
+
+@app.patch("/api/findings/{finding_id}")
+def update_finding(finding_id:int,payload:FindingStatusRequest,request:Request):
+    user=current_user(request)
+    try: changed=db.update_finding_status(user["id"],finding_id,payload.status)
+    except ValueError as exc: raise HTTPException(400,str(exc))
+    if not changed: raise HTTPException(404,"Finding not found")
+    return {"status":payload.status}
+
 class AlertRequest(BaseModel):
     kind:str
     target:str
