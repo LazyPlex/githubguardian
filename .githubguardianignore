@@ -1,0 +1,5 @@
+# Suppression rules:
+# detector
+# detector:path
+# path:line
+# detector:path:line
