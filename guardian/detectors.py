@@ -16,7 +16,8 @@ PATTERNS: tuple[tuple[str, str, str, str], ...] = (
     ("npm_token", r"\bnpm_[A-Za-z0-9]{20,}\b", "high", "Revoke the npm token and remove it from source control."),
     ("slack_token", r"\bxox[baprs]-[0-9A-Za-z-]{10,}\b", "high", "Revoke the Slack token and remove it from source control."),
     ("heroku_api_key", r"(?i)\bheroku[_-]?api[_-]?key\b\s*[:=]\s*[\"']?([0-9a-f]{20,})", "high", "Rotate the Heroku credential and remove it from source control."),
-    ("generic_api_key_assignment", r"(?i)\b(?:api[_-]?key|secret[_-]?key|access[_-]?token|client[_-]?secret)\b\s*[:=]\s*[\"']?([A-Za-z0-9_\-./+=]{20,})", "high", "Rotate the credential and remove it from source control."),
+    # Match actual credential assignments, not SQL identifiers such as excluded.access_token.
+    ("generic_api_key_assignment", r"(?i)(?<![.\w])(?:[\"']?)(?:api[_-]?key|secret[_-]?key|access[_-]?token|client[_-]?secret)(?:[\"']?)\s*[:=]\s*[\"']?([A-Za-z0-9_\-./+=]{20,})", "high", "Rotate the credential and remove it from source control."),
     ("database_url", r"(?i)\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis)://[^\s\"']+", "high", "Rotate database credentials and remove the connection string from source control."),
     ("jwt", r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b", "medium", "Verify whether the token is live, revoke it if applicable, and remove it from source control."),
 )
