@@ -24,11 +24,7 @@ class ScanService:
         thread.start()
 
     def run_scan(self, rid):
-        with self.db.connect() as conn:
-            row = conn.execute(
-                "SELECT r.*,u.access_token FROM repositories r JOIN users u ON u.id=r.user_id WHERE r.id=?",
-                (rid,),
-            ).fetchone()
+        row = self.db.get_repo_for_scan(rid)
         if not row:
             logger.warning("Scan requested for missing repository id=%s", rid)
             return
