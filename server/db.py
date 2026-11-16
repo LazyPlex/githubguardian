@@ -47,10 +47,12 @@ CREATE TABLE IF NOT EXISTS alert_configs(id INTEGER PRIMARY KEY AUTOINCREMENT,us
             if self.fernet:
                 rows = c.execute("SELECT id,access_token FROM users").fetchall()
                 for row in rows:
-                    try:
-                        self.fernet.decrypt(row["access_token"].encode())
-                    except InvalidToken:
-                        c.execute("UPDATE users SET access_token=? WHERE id=?", (self._encrypt(row["access_token"]), row["id"]))
+                    token = row["access_token"]
+                    if token.startswith("gAAAA"):
+                        # An encrypted value that fails to decrypt means the key is wrong.
+                        self.fernet.decrypt(token.encode())
+                    else:
+                        c.execute("UPDATE users SET access_token=? WHERE id=?", (self._encrypt(token), row["id"]))
 
     def upsert_user(self, u, token):
         encrypted = self._encrypt(token)
