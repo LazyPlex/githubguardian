@@ -1,9 +1,6 @@
 name: GitHub Guardian Code Scanning
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
