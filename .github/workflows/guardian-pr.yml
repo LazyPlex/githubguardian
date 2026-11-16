@@ -2,6 +2,11 @@ name: GitHub Guardian PR Scan
 
 on:
   workflow_dispatch:
+    inputs:
+      pull_request_number:
+        description: Pull request number to scan
+        required: true
+        type: number
 
 permissions:
   contents: read
@@ -20,7 +25,7 @@ jobs:
       - name: Install GitHub Guardian
         run: pip install .
       - name: Scan selected pull request diff
-        if: ${{ inputs.pull_request_number != '' }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: githubguardian "${{ github.repository }}" --pr "${{ inputs.pull_request_number }}" --fail-on high
+          PR_NUMBER: ${{ inputs.pull_request_number }}
+        run: githubguardian "${{ github.repository }}" --pr "$PR_NUMBER" --fail-on high
