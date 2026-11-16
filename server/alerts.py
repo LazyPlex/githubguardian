@@ -12,11 +12,10 @@ def _validate_target(kind, target):
     host = parsed.hostname.lower().rstrip(".")
     try:
         address = ipaddress.ip_address(host)
-        if not address.is_global:
-            raise ValueError("Private or non-public webhook addresses are not allowed")
-    except ValueError as exc:
-        if "not allowed" in str(exc):
-            raise
+    except ValueError:
+        address = None
+    if address is not None and not address.is_global:
+        raise ValueError("Private or non-public webhook addresses are not allowed")
     if kind == "slack" and host != "hooks.slack.com":
         raise ValueError("Slack webhook host must be hooks.slack.com")
     if kind == "email":
