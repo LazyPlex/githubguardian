@@ -1,5 +1,6 @@
 from guardian.detectors import scan_text
 
+
 def test_secret_detectors():
     text = """
 github=ghp_abcdefghijklmnopqrstuvwxyz123456
@@ -12,6 +13,17 @@ slack=xoxb-1234567890-abcdefghij
     assert {"github_token", "stripe_secret_key", "npm_token", "slack_token"} <= detectors
     assert all("*" in f.redacted_match for f in findings)
 
+
 def test_private_key_is_critical():
     findings = scan_text("-----BEGIN PRIVATE KEY-----", "key.txt")
     assert findings[0].severity == "critical"
+
+
+def test_sql_excluded_access_token_is_not_a_secret():
+    findings = scan_text("access_token=excluded.access_token", "server/db.py")
+    assert "generic_api_key_assignment" not in {f.detector for f in findings}
+
+
+def test_generic_assignment_still_detects_credential():
+    findings = scan_text('access_token = "abcdefghijklmnopqrstuvwx"', "settings.py")
+    assert "generic_api_key_assignment" in {f.detector for f in findings}
