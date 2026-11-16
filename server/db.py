@@ -43,6 +43,14 @@ CREATE TABLE IF NOT EXISTS teams(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT 
 CREATE TABLE IF NOT EXISTS findings(id INTEGER PRIMARY KEY AUTOINCREMENT,repository_id INTEGER NOT NULL,fingerprint TEXT NOT NULL,detector TEXT NOT NULL,severity TEXT NOT NULL,path TEXT NOT NULL,line INTEGER NOT NULL,redacted_match TEXT NOT NULL,recommendation TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'open',first_seen TEXT NOT NULL,last_seen TEXT NOT NULL,UNIQUE(repository_id,fingerprint));
 CREATE TABLE IF NOT EXISTS scans(id INTEGER PRIMARY KEY AUTOINCREMENT,repository_id INTEGER NOT NULL,status TEXT NOT NULL,finding_count INTEGER NOT NULL DEFAULT 0,started_at TEXT NOT NULL,finished_at TEXT);
 CREATE TABLE IF NOT EXISTS alert_configs(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,kind TEXT NOT NULL,target TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1);""")
+            # Encrypt pre-existing plaintext OAuth tokens during the first keyed startup.
+            if self.fernet:
+                rows = c.execute("SELECT id,access_token FROM users").fetchall()
+                for row in rows:
+                    try:
+                        self.fernet.decrypt(row["access_token"].encode())
+                    except InvalidToken:
+                        c.execute("UPDATE users SET access_token=? WHERE id=?", (self._encrypt(row["access_token"]), row["id"]))
 
     def upsert_user(self, u, token):
         encrypted = self._encrypt(token)
