@@ -25,3 +25,13 @@ def test_team_role_is_scoped_to_team(tmp_path, monkeypatch):
     team_id = db.create_team(owner_id, "Security")
     assert db.team_role(owner_id, team_id) == "owner"
     assert db.team_role(other_id, team_id) is None
+
+
+def test_background_scan_repository_returns_decrypted_token(tmp_path, monkeypatch):
+    monkeypatch.setenv("GUARDIAN_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    db = Database(str(tmp_path / "scan.sqlite"))
+    user_id = db.upsert_user({"id": 77, "login": "scanner"}, "gho_scan_token")
+    repo_id = db.upsert_repo(user_id, "owner/repo", "main")
+    record = db.get_repo_for_scan(repo_id)
+    assert record["access_token"] == "gho_scan_token"
+    assert record["full_name"] == "owner/repo"
