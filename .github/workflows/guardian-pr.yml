@@ -1,8 +1,7 @@
 name: GitHub Guardian PR Scan
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,14 +13,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ github.event.repository.default_branch || github.ref_name }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Install GitHub Guardian
         run: pip install .
-      - name: Scan pull request diff
+      - name: Scan selected pull request diff
+        if: ${{ inputs.pull_request_number != '' }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          githubguardian "${{ github.repository }}" --pr "${{ github.event.pull_request.number }}" --fail-on high
+        run: githubguardian "${{ github.repository }}" --pr "${{ inputs.pull_request_number }}" --fail-on high
