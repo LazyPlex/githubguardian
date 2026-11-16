@@ -134,6 +134,18 @@ CREATE TABLE IF NOT EXISTS alert_configs(id INTEGER PRIMARY KEY AUTOINCREMENT,us
         with self.connect() as c:
             return [dict(x) for x in c.execute("SELECT * FROM alert_configs WHERE user_id=? AND enabled=1", (uid,)).fetchall()]
 
+    def get_repo_for_scan(self, repository_id):
+        with self.connect() as c:
+            row = c.execute(
+                "SELECT r.*,u.access_token FROM repositories r JOIN users u ON u.id=r.user_id WHERE r.id=?",
+                (repository_id,),
+            ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        result["access_token"] = self._decrypt(result["access_token"])
+        return result
+
     def list_repos_all(self):
         with self.connect() as c:
             rows = [dict(x) for x in c.execute("SELECT r.*,u.access_token FROM repositories r JOIN users u ON u.id=r.user_id").fetchall()]
